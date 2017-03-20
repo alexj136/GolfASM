@@ -38,13 +38,13 @@ put :: Ord a => a -> Exp -> MemoryIndexedBy a -> MemoryIndexedBy a
 put = M.insert
 
 -- Run a code buffer with an empty machine until the code buffer is empty
-runProg :: String -> MachineState
+runProg :: String -> IO MachineState
 runProg s = run (s, [], M.empty, M.empty)
 
 -- Run a machine until the code buffer is empty
-run :: MachineState -> MachineState
-run m@("", s, h, r) = m
-run m@(p , s, h, r) = run $ step m
+run :: MachineState -> IO MachineState
+run m@("", s, h, r) = return m
+run m@(p , s, h, r) = do m' <- step m; run m'
 
 -- Convert an expression into a haskell string (or executable code)
 expToCode :: Exp -> String
@@ -56,57 +56,60 @@ codeToExp = ListE . map CharE
 
 -- Perform a single execution step for the given machine, returning the
 -- resulting machine.
-step :: MachineState -> MachineState
+step :: MachineState -> IO MachineState
 step (p, s, h, r) = case p of
 
     -- Nop (do nothing)
-    ' ':q -> (q, s, h, r)
+    ' ':q -> return (q, s, h, r)
 
     -- Push an immediate decimal number
-    d:q | d `elem` ['0'..'9'] -> (dropWhile (`elem` ['0'..'9']) p,
+    d:q | d `elem` ['0'..'9'] -> return (dropWhile (`elem` ['0'..'9']) p,
         IntE (read (takeWhile (`elem` ['0'..'9']) p)):s, h, r)
 
     -- Push code until matching '}'
     '{':q -> let (toCloseCurly, _) = matchSplit Curly [] q in
-        (q, codeToExp ('{':toCloseCurly):s, h, r)
+        return (q, codeToExp ('{':toCloseCurly):s, h, r)
 
     -- Pop to program code if accumulator is non-zero, otherwise pop nowhere
-    '}':q | get 'a' r == IntE 0 -> (q, tail s, h, r)
-          | otherwise   -> (expToCode (head s) ++ p, tail s, h, r)
+    '}':q | get 'a' r == IntE 0 -> return (q, tail s, h, r)
+          | otherwise -> return (expToCode (head s) ++ p, tail s, h, r)
 
     -- Push code until matching ')', skip to just after the matching ')'
     '(':q -> let (toCloseRound, q') = matchSplit Round [] q in
-        (tail q', codeToExp toCloseRound:s, h, r)
+        return (tail q', codeToExp toCloseRound:s, h, r)
 
     -- Pop stack into heap address in accumulator
-    '^':q -> (q, tail s, put (case get 'a' r of IntE x -> x) (head s) h, r)
+    '^':q -> return
+        (q, tail s, put (case get 'a' r of IntE x -> x) (head s) h, r)
 
     -- Push value at heap address in accumulator
-    'v':q -> (q, (get (case get 'a' r of IntE x -> x) h):s, h, r)
+    'v':q -> return (q, (get (case get 'a' r of IntE x -> x) h):s, h, r)
 
     -- Pop into register
-    a:q | a `elem` ['A'..'Z'] -> (q, tail s, h, put (toLower a) (head s) r)
+    a:q | a `elem` ['A'..'Z'] -> return
+        (q, tail s, h, put (toLower a) (head s) r)
 
     -- Push register
-    a:q | a `elem` ['a'..'z'] -> (q, get a r:s, h, r)
+    a:q | a `elem` ['a'..'z'] -> return (q, get a r:s, h, r)
 
     -- Add the integers on top of the stack
-    '+':q -> (q, case s of IntE x:IntE y:z -> IntE (x+y):z, h, r)
+    '+':q -> return (q, case s of IntE x:IntE y:z -> IntE (x+y):z, h, r)
 
     -- Subtract the second-to-top stack elem from the top stack elem
-    '-':q -> (q, case s of IntE x:IntE y:z -> IntE (x-y):z, h, r)
+    '-':q -> return (q, case s of IntE x:IntE y:z -> IntE (x-y):z, h, r)
 
     -- Increment the integer on top of the stack
-    '↑':q -> (q, case s of IntE x:y -> IntE (x+1):y, h, r)
+    '↑':q -> return (q, case s of IntE x:y -> IntE (x+1):y, h, r)
 
     -- Decrement the integer on top of the stack
-    '↓':q -> (q, case s of IntE x:y -> IntE (x-1):y, h, r)
+    '↓':q -> return (q, case s of IntE x:y -> IntE (x-1):y, h, r)
 
     -- Logical not the top of the stack
-    '!':q -> (q, case s of IntE 0:z -> IntE 1:z; IntE n:z -> IntE 0:z, h, r)
+    '!':q -> return
+        (q, case s of IntE 0:z -> IntE 1:z; IntE n:z -> IntE 0:z, h, r)
 
     -- Discard the top of the stack
-    '\\':q -> (q, tail s, h, r)
+    '\\':q -> return (q, tail s, h, r)
 
     -- Catchall error
     c:q -> error $ "Unrecognised character '" ++ c : "'"
