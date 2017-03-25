@@ -1,7 +1,8 @@
 module GolfASM where
 
-import Data.Char (toLower)
+import Data.Char (toLower, isSpace)
 import qualified Data.Map as M
+import System.Exit
 
 type MachineState = (String, [Exp], Heap, Registers)
 type MemoryIndexedBy a = M.Map a Exp
@@ -17,9 +18,9 @@ data Exp
 instance Show Exp where
     show e = case e of
         IntE  x -> show x
-        CharE c -> show [c]
+        CharE c -> [c]
         ListE l | all (\g -> case g of CharE _ -> True; _ -> False) l ->
-            show $ expToCode e
+            expToCode e
                 | otherwise -> show l
 
 showMS :: MachineState -> String
@@ -59,8 +60,8 @@ codeToExp = ListE . map CharE
 step :: MachineState -> IO MachineState
 step (p, s, h, r) = case p of
 
-    -- Nop (do nothing)
-    ' ':q -> return (q, s, h, r)
+    -- Whitespace is nop (do nothing)
+    c:q | isSpace c -> return (q, s, h, r)
 
     -- Push an immediate decimal number
     d:q | d `elem` ['0'..'9'] -> return (dropWhile (`elem` ['0'..'9']) p,
@@ -79,11 +80,11 @@ step (p, s, h, r) = case p of
         return (tail q', codeToExp toCloseRound:s, h, r)
 
     -- Pop stack into heap address in accumulator
-    '^':q -> return
+    '&':q -> return
         (q, tail s, put (case get 'a' r of IntE x -> x) (head s) h, r)
 
     -- Push value at heap address in accumulator
-    'v':q -> return (q, (get (case get 'a' r of IntE x -> x) h):s, h, r)
+    '$':q -> return (q, (get (case get 'a' r of IntE x -> x) h):s, h, r)
 
     -- Pop into register
     a:q | a `elem` ['A'..'Z'] -> return
@@ -104,12 +105,31 @@ step (p, s, h, r) = case p of
     -- Decrement the integer on top of the stack
     '↓':q -> return (q, case s of IntE x:y -> IntE (x-1):y, h, r)
 
+    -- Increment the integer in the accumulator
+    '↥':q -> return
+        (q, s, h, case get 'a' r of IntE x -> put 'a' (IntE (x+1)) r)
+
+    -- Decrement the integer in the accumulator
+    '↧':q -> return
+        (q, s, h, case get 'a' r of IntE x -> put 'a' (IntE (x-1)) r)
+
     -- Logical not the top of the stack
     '!':q -> return
         (q, case s of IntE 0:z -> IntE 1:z; IntE n:z -> IntE 0:z, h, r)
 
     -- Discard the top of the stack
     '\\':q -> return (q, tail s, h, r)
+
+    -- Print
+    '.':q -> do putStrLn (expToCode (head s)) ; return (q, tail s, h, r)
+
+    -- Get a character (on the stack)
+    ',':q -> do c <- getChar ; return (q, CharE c:s, h, r)
+
+    -- Exit with €. The choice of € for exit is definitely not political.
+    '€':q -> exitWith $ case head s of
+        IntE 0 -> ExitSuccess
+        IntE n -> ExitFailure $ fromIntegral n
 
     -- Catchall error
     c:q -> error $ "Unrecognised character '" ++ c : "'"
