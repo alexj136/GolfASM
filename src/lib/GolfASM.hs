@@ -15,6 +15,12 @@ data Exp
     | CharE Char
     deriving (Eq, Ord)
 
+-- Does the given expression encode a string?
+isString :: Exp -> Bool
+isString (ListE [])          = True
+isString (ListE (CharE _:l)) = isString (ListE l)
+isString _                   = False
+
 instance Show Exp where
     show e = case e of
         IntE  x -> show x
@@ -22,13 +28,6 @@ instance Show Exp where
         ListE l | all (\g -> case g of CharE _ -> True; _ -> False) l ->
             expToCode e
                 | otherwise -> show l
-
-showMS :: MachineState -> String
-showMS (p, s, h, r) =
-    (if p == "" then "" else "CODE  " ++ p ++ "\n") ++
-    "STACK " ++ show s ++ "\n" ++
-    "HEAP  " ++ show h ++ "\n" ++
-    "REGS  " ++ show r ++ "\n"
 
 -- Lookup a given register or heap value. Uninitialised memory defaults to 0.
 get :: Ord a => a -> MemoryIndexedBy a -> Exp
@@ -46,6 +45,14 @@ runProg s = run (s, [], M.empty, M.empty)
 run :: MachineState -> IO MachineState
 run m@("", s, h, r) = return m
 run m@(p , s, h, r) = do m' <- step m; run m'
+
+-- Run with debug log
+debugRun :: MachineState -> IO MachineState
+debugRun m@("", s, h, r) = return m
+debugRun m@(p , s, h, r) = do
+    m' <- step m
+    putStrLn $ show m'
+    debugRun m'
 
 -- Convert an expression into a haskell string (or executable code)
 expToCode :: Exp -> String
@@ -78,6 +85,9 @@ step (p, s, h, r) = case p of
     -- Push code until matching ')', skip to just after the matching ')'
     '(':q -> let (toCloseRound, q') = matchSplit Round [] q in
         return (tail q', codeToExp toCloseRound:s, h, r)
+
+    -- Unconditionally pop to program code
+    '£':q  -> return (expToCode (head s) ++ q, tail s, h, r)
 
     -- Pop stack into heap address in accumulator
     '&':q -> return
@@ -121,7 +131,7 @@ step (p, s, h, r) = case p of
     '\\':q -> return (q, tail s, h, r)
 
     -- Print
-    '.':q -> do putStrLn (expToCode (head s)) ; return (q, tail s, h, r)
+    '.':q -> do putStrLn (show (head s)) ; return (q, tail s, h, r)
 
     -- Get a character (on the stack)
     ',':q -> do c <- getChar ; return (q, CharE c:s, h, r)
