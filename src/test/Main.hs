@@ -1,25 +1,11 @@
 module Main where
 
+import TestUtils
 import GolfASM
+import qualified LexerTest as LT
 
 import System.Exit
 import qualified Data.Map as M
-
-data Test = Test String (IO Bool)
-
-runTest :: Test -> IO Bool
-runTest (Test s run) = do
-    result <- run
-    if not result then putStrLn $ "Test failed: " ++ s else return ()
-    return result
-
-runTests :: [Test] -> IO Bool
-runTests ts = do
-    putStrLn $ "\nRunning " ++ show (length ts) ++ " tests..."
-    allResults <- sequence $ map runTest ts
-    putStrLn $ show (length (filter id allResults)) ++ "/" ++
-        show (length ts) ++ " tests passed."
-    return $ and allResults
 
 makeFinalStateTest :: String -> String -> MachineState -> Test
 makeFinalStateTest desc prog expectRes = Test desc $ do
@@ -38,6 +24,7 @@ main = do
 
 allTests :: [Test]
 allTests =
+    LT.allTests ++
     [ makeFinalStateTest "Simple 1" "10" 
         ("", [IntE 10], M.empty, M.empty)
     , makeFinalStateTest "Simple 2" "10A"

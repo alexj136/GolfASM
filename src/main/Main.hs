@@ -1,5 +1,6 @@
 import GolfASM
 
+import Lexer
 import System.Environment (getArgs)
 import qualified Data.Map as M
 
