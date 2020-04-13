@@ -1,7 +1,14 @@
 module Parser where
 
+import Data.List (elemIndex)
+import Data.Char (isUpper, isLower, toLower)
+
 import Lexer
 import GolfASMTypes
+
+upper, lower :: String
+upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+lower = "abcdefghijklmnopqrstuvwxyz"
 
 -- TODO: rewrite so it can be tested properly
 parse :: [Token] -> [[Command]] -> [Command]
@@ -18,17 +25,17 @@ easyParse :: Token -> Command
 easyParse token = case token of
     TkInt i -> Immediate (ValInt i)
     TkStr s -> Immediate (ValList (map (Immediate . ValChar) s))
-    Tk c | elem c "ABCDEFGHIJKLMNOPQRSTUVWXYZ" -> PushVar c
-    Tk c | elem c "abcdefghijklmnopqrstuvwxyz" -> PopVar  c
+    Tk c | isUpper c -> PushVar (toLower c)
+    Tk c | isLower c -> PopVar  c
     Tk '.' -> OpCall
     Tk '?' -> OpCond
     Tk '$' -> OpPrint
     Tk ':' -> OpListConcat
     Tk '|' -> OpListHead
     Tk '#' -> OpListTail
-    Tk '+' -> OpIntAdd
-    Tk '-' -> OpIntSub
-    Tk '*' -> OpIntMul
-    Tk '/' -> OpIntDiv
-    Tk '%' -> OpIntMod
+    Tk '+' -> OpIntBinary Add
+    Tk '-' -> OpIntBinary Sub
+    Tk '*' -> OpIntBinary Mul
+    Tk '/' -> OpIntBinary Div
+    Tk '%' -> OpIntBinary Mod
     _ -> error "unrecognised token type in parser"

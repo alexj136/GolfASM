@@ -9,6 +9,7 @@ $lower = a-z
 $ntquo = ~[\"]
 
 tokens :-
+    $white+       ;
 --    $lower+       { \p s -> (TkVar s              , p) }
     $digit+       { \p s -> (TkInt (read s)       , p) }
     \"[$ntquo]*\" { \p s -> (TkStr (init (tail s)), p) }

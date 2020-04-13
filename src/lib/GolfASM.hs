@@ -32,15 +32,27 @@ step (command:commands, stack, registers) = case command of
     PopVar    register -> return (commands, (registers M.! register):stack, registers)
     Immediate value    -> return (commands, value:stack, registers)
     OpCall             -> return ((valList (head stack)) ++ commands, tail stack, registers)
-    OpCond             -> return (commands, undefined, undefined)
+    OpCond             -> return (commands, stack', registers) where
+        stack' = case stack of
+            ValInt 1 : t : f : rest -> t : rest
+            ValInt 0 : t : f : rest -> f : rest
+            _                       -> error "bad stack for conditionals"
     OpPrint            -> do
         putStrLn (valueAsString (head stack))
         return (commands, tail stack, registers)
-    OpListConcat       -> return (commands, undefined, undefined)
-    OpListHead         -> return (commands, undefined, undefined)
-    OpListTail         -> return (commands, undefined, undefined)
-    OpIntAdd           -> return (commands, undefined, undefined)
-    OpIntSub           -> return (commands, undefined, undefined)
-    OpIntMul           -> return (commands, undefined, undefined)
-    OpIntDiv           -> return (commands, undefined, undefined)
-    OpIntMod           -> return (commands, undefined, undefined)
+    OpListConcat       -> return (commands, stack', registers) where
+        stack' = case stack of
+            ValList l1 : ValList l2 : rest -> ValList (l1 ++ l2) : rest
+            _ -> error "bad stack for list concat"
+    OpListHead         -> return (commands, stack', registers) where
+        stack' = case stack of
+            ValList l1 : rest -> immediateValue (head l1) : rest
+            _ -> error "bad stack for list head"
+    OpListTail         -> return (commands, stack', registers) where
+        stack' = case stack of
+            ValList l1 : rest -> ValList (tail l1) : rest
+            _ -> error "bad stack for list tail"
+    OpIntBinary op     -> return (commands, stack', registers) where
+        stack' = case stack of
+            ValInt i1 : ValInt i2 : rest -> ValInt ((toFn op) i1 i2) : rest
+            _ -> error $ "bad stack for integer " ++ show op
