@@ -1,19 +1,20 @@
 # GolfASM
 
-GolfASM is an eccentric, assembly-like programming language that also takes inspiration from BrainF**k. GolfASM syntax is designed such that programs are as short as possible given its assembly-like execution model.
+GolfASM is a stack machine programming language like assembly, but with
+single-character commands.
 
-There are four components to a GolfASM machine:
-- The code buffer, from which instructions are interpreted
-- The stack, a stack of expressions, initially empty
-- The heap, an integer-indexed array of expressions
-- The 26 registers named 'a' through 'z'. 'a' is the accumulator register
-    used for various computations.
+Uppercase alphabetical characters pop the stack to a register, and the lowecase
+corresponding character pushes the register on the stack.
 
-GolfASM memory contains expressions that can be integer, character, or list of integer, character or list.
+Data types: Int, Char, List. Lists can contain data or commands.
 
-## GolfASM Commands
-- `{` copy the code up to the matching `}` on top of the stack
-- `}` pop the code on top of the stack onto the execution buffer if the accumulator is 0, otherwise pop it to nowhere
-- `(` push the code up to the matching `)` on top of the stack, and discard the matching `)`
-- `+` add the two integers on top of the stack. Afterwards, the arguments are removed and the result is on top of the stack.
-- etc
+Other commands - each take one or two arguments on the stack and remove them
+    - binary integer ops: `+-*/%`
+    - list ops: `|` - head, `#` - tail, `:` - concat
+    - print with `$`
+    - `.` takes a list of commands on the stack and puts them at the start of
+      the code buffer, effectively calling that code
+    - Lists delimited with `[` and `]` - they must match 
+    - `?` ternary operator
+    - integer and string literals e.g. `1232`, "ashbdj"
+    - whitespace is ignored but separates multi-char tokens (i.e. int literals)
