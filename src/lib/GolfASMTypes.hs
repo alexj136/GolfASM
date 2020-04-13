@@ -43,5 +43,20 @@ data Value
     | ValList [Command]
     deriving (Show, Eq, Ord)
 
-valueCommands :: Value -> [Command]
-valueCommands (ValList commands) = commands
+immediateValue :: Command -> Value
+immediateValue (Immediate v) = v
+immediateValue _ = error "not an Immediate"
+
+valChar :: Value -> Char
+valChar (ValChar c) = c
+valChar _ = error "not a ValChar"
+
+valList :: Value -> [Command]
+valList (ValList c) = c
+valList _ = error "not a ValList"
+
+valuesAsString :: [Value] -> String
+valuesAsString = map valChar
+
+valueAsString :: Value -> String
+valueAsString = map (valChar . immediateValue) . valList

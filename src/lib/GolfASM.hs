@@ -31,9 +31,11 @@ step (command:commands, stack, registers) = case command of
     PushVar   register -> return (commands, tail stack, M.insert register (head stack) registers)
     PopVar    register -> return (commands, (registers M.! register):stack, registers)
     Immediate value    -> return (commands, value:stack, registers)
-    OpCall             -> return ((valueCommands (head stack)) ++ commands, tail stack, registers)
+    OpCall             -> return ((valList (head stack)) ++ commands, tail stack, registers)
     OpCond             -> return (commands, undefined, undefined)
-    OpPrint            -> return (commands, undefined, undefined)
+    OpPrint            -> do
+        putStrLn (valueAsString (head stack))
+        return (commands, tail stack, registers)
     OpListConcat       -> return (commands, undefined, undefined)
     OpListHead         -> return (commands, undefined, undefined)
     OpListTail         -> return (commands, undefined, undefined)

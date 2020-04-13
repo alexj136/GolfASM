@@ -24,4 +24,7 @@ data Token
 -- The lexer function
 scan :: String -> [(Token, AlexPosn)]
 scan = alexScanTokens
+
+scanNoPos :: String -> [Token]
+scanNoPos = map fst . scan
 }

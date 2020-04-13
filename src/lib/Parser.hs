@@ -3,27 +3,32 @@ module Parser where
 import Lexer
 import GolfASMTypes
 
-upper, lower :: String
-upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-lower = "abcdefghijklmnopqrstuvwxyz"
+-- TODO: rewrite so it can be tested properly
+parse :: [Token] -> [[Command]] -> [Command]
+parse [] stack = case length stack of
+    1         -> head stack
+    n | n > 1 -> error "parser: unclosed paren"
+    n | n < 1 -> error "parser: extra closing paren"
+parse (currentTk:rest) stack = case currentTk of
+    Tk '[' -> parse rest ([] : stack)
+    Tk ']' -> (Immediate . ValList) (head stack) : parse rest (tail stack)
+    _      -> parse rest ((head stack ++ [easyParse currentTk]) : tail stack)
 
-parse :: [Token] -> [Command]
-parse [] = []
-parse (token:tokens) = case token of
-    TkInt i -> Immediate (ValInt i)                              : parse tokens
-    TkStr s -> Immediate (ValList (map (Immediate . ValChar) s)) : parse tokens
-    Tk c | elem c upper -> PushVar c : parse tokens
-    Tk c | elem c lower -> PopVar  c : parse tokens
-    Tk '.' -> OpCall       : parse tokens
-    Tk '?' -> OpCond       : parse tokens
-    Tk '$' -> OpPrint      : parse tokens
-    Tk ':' -> OpListConcat : parse tokens
-    Tk '|' -> OpListHead   : parse tokens
-    Tk '#' -> OpListTail   : parse tokens
-    Tk '+' -> OpIntAdd     : parse tokens
-    Tk '-' -> OpIntSub     : parse tokens
-    Tk '*' -> OpIntMul     : parse tokens
-    Tk '/' -> OpIntDiv     : parse tokens
-    Tk '%' -> OpIntMod     : parse tokens
-    Tk '[' -> undefined -- see brainhask
-    Tk ']' -> undefined -- see brainhask
+easyParse :: Token -> Command
+easyParse token = case token of
+    TkInt i -> Immediate (ValInt i)
+    TkStr s -> Immediate (ValList (map (Immediate . ValChar) s))
+    Tk c | elem c "ABCDEFGHIJKLMNOPQRSTUVWXYZ" -> PushVar c
+    Tk c | elem c "abcdefghijklmnopqrstuvwxyz" -> PopVar  c
+    Tk '.' -> OpCall
+    Tk '?' -> OpCond
+    Tk '$' -> OpPrint
+    Tk ':' -> OpListConcat
+    Tk '|' -> OpListHead
+    Tk '#' -> OpListTail
+    Tk '+' -> OpIntAdd
+    Tk '-' -> OpIntSub
+    Tk '*' -> OpIntMul
+    Tk '/' -> OpIntDiv
+    Tk '%' -> OpIntMod
+    _ -> error "unrecognised token type in parser"

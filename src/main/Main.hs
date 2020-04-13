@@ -14,10 +14,10 @@ main = do
     case args of
         "-e" : prog : args -> do
             finalState <- run
-                (prog, map codeToExp args, M.empty, M.empty)
+                (parse (scanNoPos prog) [[]], [] ,M.empty)
             return ()
         file : args -> do
             prog <- readFile file
             finalState <- run
-                (prog, map codeToExp args, M.empty, M.empty)
+                (parse (scanNoPos prog) [[]], [], M.empty)
             return ()
